@@ -34,10 +34,26 @@ class URL:
             s = ctx.wrap_socket(s, server_hostname=self.host)
 
         s.connect((self.host, self.port))
-        request = "GET {} HTTP/1.0\r\n".format(self.path)
-        request += "Host: {}\r\n".format(self.host)
+
+        # HTTP/1.1 request line
+        request = "GET {} HTTP/1.1\r\n".format(self.path)
+
+        # Headers
+        headers = {
+            "Host": self.host,
+            "Connection": "close",
+            "User-Agent": "MySimpleBrowser/1.0"
+        }
+
+        # Add headers to request
+        for header, value in headers.items():
+            request += "{}: {}\r\n".format(header, value)
         request += "\r\n"
+
+        # Send request
         s.send(request.encode("utf8"))
+
+        # Read response
         response = s.makefile("r", encoding="utf8", newline="\r\n")
         statusline = response.readline()
         version, status, explanation = statusline.split(" ", 2)
