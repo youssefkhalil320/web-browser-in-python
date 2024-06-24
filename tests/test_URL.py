@@ -157,3 +157,12 @@ def test_view_source_url():
     body = show(test_url.request())
     print(body)
     assert true_val in body, 'true value is not in the response'
+
+
+def test_redirect_1():
+    url = "http://browser.engineering/redirect"
+    true_val = """header. Instead, when reading the
+body from the socket, only read as many bytes as given in the"""
+    test_url = URL(url)
+    body = show(test_url.request())
+    assert true_val in body, 'true value is not in the response'
