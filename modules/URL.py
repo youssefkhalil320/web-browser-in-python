@@ -1,6 +1,7 @@
 import socket
 import ssl
 import urllib.parse
+import base64
 import PyPDF2
 
 
@@ -9,30 +10,38 @@ class URL:
         if url is None:
             # Default file to open if no URL is provided
             url = 'file:///path/to/default/file.txt'
-        self.scheme, url = url.split('://', 1)
-        assert self.scheme in ['http', 'https', 'file']
 
-        if self.scheme in ['http', 'https']:
-            if "/" not in url:
-                url = url + "/"
+        # Check if the URL is a data URL
+        if url.startswith('data:'):
+            self.scheme = 'data'
+            self.data = url[len('data:'):]
+        else:
+            self.scheme, url = url.split('://', 1)
+            assert self.scheme in ['http', 'https', 'file']
 
-            self.host, url = url.split('/', 1)
-            self.path = "/" + url
+            if self.scheme in ['http', 'https']:
+                if "/" not in url:
+                    url = url + "/"
 
-            if self.scheme == 'http':
-                self.port = 80
-            elif self.scheme == 'https':
-                self.port = 443
+                self.host, url = url.split('/', 1)
+                self.path = "/" + url
 
-            if ":" in self.host:
-                self.host, port = self.host.split(":", 1)
-                self.port = int(port)
-        elif self.scheme == 'file':
-            self.path = url
+                if self.scheme == 'http':
+                    self.port = 80
+                elif self.scheme == 'https':
+                    self.port = 443
+
+                if ":" in self.host:
+                    self.host, port = self.host.split(":", 1)
+                    self.port = int(port)
+            elif self.scheme == 'file':
+                self.path = url
 
     def request(self):
         if self.scheme == 'file':
             return self._handle_file_request()
+        elif self.scheme == 'data':
+            return self._handle_data_request()
         else:
             return self._handle_http_request()
 
@@ -97,3 +106,23 @@ class URL:
         content = response.read()
         s.close()
         return content
+
+    def _handle_data_request(self):
+        try:
+            if ',' not in self.data:
+                raise ValueError("Invalid data URL")
+
+            metadata, data = self.data.split(',', 1)
+            if metadata.endswith(";base64"):
+                data = base64.b64decode(data).decode('utf-8')
+            else:
+                data = urllib.parse.unquote(data)
+
+            return data
+        except Exception as e:
+            return f"Error: {e}"
+
+
+# Example usage:
+# url = URL('data:text/html,Hello%20world!')
+# print(url.request())  # Should print: Hello world!
