@@ -3,6 +3,7 @@ import ssl
 import urllib.parse
 import base64
 import PyPDF2
+import sys
 
 
 class URL:
@@ -11,8 +12,10 @@ class URL:
             # Default file to open if no URL is provided
             url = 'file:///path/to/default/file.txt'
 
-        # Check if the URL is a data URL
-        if url.startswith('data:'):
+        if url.startswith('view-source:'):
+            self.scheme = 'view-source'
+            self.source_url = url[len('view-source:'):]
+        elif url.startswith('data:'):
             self.scheme = 'data'
             self.data = url[len('data:'):]
         else:
@@ -42,6 +45,8 @@ class URL:
             return self._handle_file_request()
         elif self.scheme == 'data':
             return self._handle_data_request()
+        elif self.scheme == 'view-source':
+            return self._handle_view_source_request()
         else:
             return self._handle_http_request()
 
@@ -122,7 +127,13 @@ class URL:
         except Exception as e:
             return f"Error: {e}"
 
+    def _handle_view_source_request(self):
+        try:
+            # Create a new URL object to fetch the source content
+            source_url = URL(self.source_url)
+            content = source_url.request()
 
-# Example usage:
-# url = URL('data:text/html,Hello%20world!')
-# print(url.request())  # Should print: Hello world!
+            # Return the content as-is, assuming it's HTML
+            return content
+        except Exception as e:
+            return f"Error: {e}"
