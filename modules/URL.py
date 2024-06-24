@@ -7,6 +7,8 @@ import sys
 
 
 class URL:
+    persistent_sockets = {}
+
     def __init__(self, url=None):
         if url is None:
             # Default file to open if no URL is provided
@@ -68,23 +70,21 @@ class URL:
             return f"Error: {e}"
 
     def _handle_http_request(self):
-        s = socket.socket(
-            family=socket.AF_INET,
-            type=socket.SOCK_STREAM,
-            proto=socket.IPPROTO_TCP,
-        )
-
-        if self.scheme == "https":
-            ctx = ssl.create_default_context()
-            s = ctx.wrap_socket(s, server_hostname=self.host)
-
-        s.connect((self.host, self.port))
+        if (self.host, self.port) in URL.persistent_sockets:
+            s = URL.persistent_sockets[(self.host, self.port)]
+        else:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            if self.scheme == "https":
+                ctx = ssl.create_default_context()
+                s = ctx.wrap_socket(s, server_hostname=self.host)
+            s.connect((self.host, self.port))
+            URL.persistent_sockets[(self.host, self.port)] = s
 
         request = "GET {} HTTP/1.1\r\n".format(self.path)
 
         headers = {
             "Host": self.host,
-            "Connection": "close",
+            "Connection": "keep-alive",
             "User-Agent": "MySimpleBrowser/1.0"
         }
 
@@ -106,10 +106,13 @@ class URL:
             header, value = line.split(":", 1)
             response_headers[header.casefold()] = value.strip()
 
-        assert "transfer-encoding" not in response_headers
-        assert "content-encoding" not in response_headers
-        content = response.read()
-        s.close()
+        content_length = int(response_headers.get("content-length", 0))
+        content = response.read(content_length)
+
+        if headers["Connection"] == "close":
+            s.close()
+            del URL.persistent_sockets[(self.host, self.port)]
+
         return content
 
     def _handle_data_request(self):
