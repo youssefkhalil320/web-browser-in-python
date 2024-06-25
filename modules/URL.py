@@ -5,6 +5,8 @@ import base64
 import PyPDF2
 import sys
 import time
+import gzip
+from io import BytesIO
 
 
 class URL:
@@ -87,8 +89,8 @@ class URL:
             request = self._build_request()
             s.send(request.encode("utf8"))
 
-            response = s.makefile("r", encoding="utf8", newline="\r\n")
-            statusline = response.readline()
+            response = s.makefile("rb", newline=b"\r\n")
+            statusline = response.readline().decode("utf8")
             version, status, explanation = statusline.split(" ", 2)
             response_headers = self._parse_response_headers(response)
 
@@ -103,12 +105,21 @@ class URL:
                 else:
                     return f"Error: No location header in redirect response (status: {status})"
             else:
-                content_length = int(response_headers.get("content-length", 0))
-                content = response.read(content_length)
+                if response_headers.get("transfer-encoding") == "chunked":
+                    content = self._read_chunked(response)
+                else:
+                    content_length = int(
+                        response_headers.get("content-length", 0))
+                    content = response.read(content_length)
+
+                if response_headers.get("content-encoding") == "gzip":
+                    content = gzip.decompress(content)
+
                 if response_headers.get("connection") == "close":
                     s.close()
                     del URL.persistent_sockets[(self.host, self.port)]
 
+                content = content.decode("utf8")
                 self.update_cache(self.path, content)
                 return content
 
@@ -131,7 +142,8 @@ class URL:
         headers = {
             "Host": self.host,
             "Connection": "keep-alive",
-            "User-Agent": "MySimpleBrowser/1.0"
+            "User-Agent": "MySimpleBrowser/1.0",
+            "Accept-Encoding": "gzip"
         }
         for header, value in headers.items():
             request += f"{header}: {value}\r\n"
@@ -141,12 +153,25 @@ class URL:
     def _parse_response_headers(self, response):
         response_headers = {}
         while True:
-            line = response.readline()
+            line = response.readline().decode("utf8")
             if line == "\r\n":
                 break
             header, value = line.split(":", 1)
             response_headers[header.casefold()] = value.strip()
         return response_headers
+
+    def _read_chunked(self, response):
+        content = b""
+        while True:
+            chunk_size_line = response.readline().strip()
+            if chunk_size_line:
+                chunk_size = int(chunk_size_line, 16)
+                if chunk_size == 0:
+                    break
+                chunk = response.read(chunk_size)
+                content += chunk
+                response.read(2)  # Skip \r\n
+        return content
 
     def _handle_redirect(self, location):
         if location.startswith("http://") or location.startswith("https://"):
@@ -190,29 +215,3 @@ class URL:
 
     def update_cache(self, url, data):
         URL.cache[url] = (time.time(), data)
-
-
-if __name__ == "__main__":
-    url = "http://info.cern.ch/hypertext/WWW/TheProject.html"
-    test_url = URL(url)
-
-    # Perform the first request and record the start time
-    start_time_first_request = time.time()
-    first_response = test_url.request()
-    end_time_first_request = time.time()
-
-    # Sleep for a second to ensure a noticeable time difference
-    time.sleep(1)
-
-    # Perform the second request and record the start time
-    start_time_second_request = time.time()
-    second_response = test_url.request()
-    end_time_second_request = time.time()
-
-    print(first_response)
-    print(second_response)
-    print(end_time_first_request - start_time_first_request)
-    print(end_time_second_request - start_time_second_request)
-    time_req1 = end_time_first_request - start_time_first_request
-    time_req2 = end_time_second_request - start_time_second_request
-    print(time_req2 < time_req1)
