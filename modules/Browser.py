@@ -18,7 +18,12 @@ class Browser:
         )
         self.canvas.pack()
         self.scroll = 0
-        self.window.bind("<Down>", self.scrolldown)
+
+        self.window.bind("<Down>", self.scroll_down)
+        self.window.bind("<Up>", self.scroll_up)
+        self.window.bind("<MouseWheel>", self.on_mouse_wheel)
+        self.window.bind("<Button-4>", self.on_mouse_wheel_linux)
+        self.window.bind("<Button-5>", self.on_mouse_wheel_linux)
 
     def draw(self):
         self.canvas.delete("all")
@@ -35,9 +40,27 @@ class Browser:
         self.display_list = layout(text)
         self.draw()
 
-    def scrolldown(self, e):
+    def scroll_down(self, e):
         self.scroll += SCROLL_STEP
         self.draw()
+
+    def scroll_up(self, e):
+        self.scroll -= SCROLL_STEP
+        if self.scroll < 0:
+            self.scroll = 0
+        self.draw()
+
+    def on_mouse_wheel(self, e):
+        if e.delta < 0:
+            self.scroll_down(e)
+        else:
+            self.scroll_up(e)
+
+    def on_mouse_wheel_linux(self, e):
+        if e.num == 5:
+            self.scroll_down(e)
+        elif e.num == 4:
+            self.scroll_up(e)
 
 
 if __name__ == "__main__":
