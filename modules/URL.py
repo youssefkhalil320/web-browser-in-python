@@ -4,17 +4,17 @@ import urllib.parse
 import base64
 import PyPDF2
 import sys
-from utilities import show
+import time
 
 
 class URL:
     persistent_sockets = {}
+    cache = {}
+    max_caching_time = 300  # 5 minutes in seconds
 
     def __init__(self, url=None):
         if url is None:
-            # Default file to open if no URL is provided
             url = 'file:///path/to/default/file.txt'
-
         self._parse_url(url)
 
     def _parse_url(self, url):
@@ -31,7 +31,6 @@ class URL:
             if self.scheme in ['http', 'https']:
                 if "/" not in url:
                     url = url + "/"
-
                 self.host, url = url.split('/', 1)
                 self.path = "/" + url
 
@@ -58,6 +57,9 @@ class URL:
 
     def _handle_file_request(self):
         file_path = urllib.parse.unquote(self.path.replace('file://', ''))
+        cache_response = self.check_in_the_cache(file_path)
+        if cache_response:
+            return cache_response
         try:
             with open(file_path, 'rb') as f:
                 reader = PyPDF2.PdfReader(f)
@@ -67,6 +69,7 @@ class URL:
                     page = reader.pages[page_num]
                     text += page.extract_text() + "\n"
 
+                self.update_cache(file_path, text)
                 return text
         except FileNotFoundError:
             return "404 Not Found: The file does not exist."
@@ -74,6 +77,10 @@ class URL:
             return f"Error: {e}"
 
     def _handle_http_request(self, max_redirects):
+        cache_response = self.check_in_the_cache(self.path)
+        if cache_response:
+            return cache_response
+
         redirects = 0
         while redirects < max_redirects:
             s = self._create_socket()
@@ -90,7 +97,7 @@ class URL:
                 if location:
                     self._handle_redirect(location)
                     redirects += 1
-                    s.close()  # Close the current socket before creating a new one for the next request
+                    s.close()
                     del URL.persistent_sockets[(self.host, self.port)]
                     continue
                 else:
@@ -101,6 +108,8 @@ class URL:
                 if response_headers.get("connection") == "close":
                     s.close()
                     del URL.persistent_sockets[(self.host, self.port)]
+
+                self.update_cache(self.path, content)
                 return content
 
         return "Error: Too many redirects"
@@ -118,14 +127,14 @@ class URL:
             return s
 
     def _build_request(self):
-        request = "GET {} HTTP/1.1\r\n".format(self.path)
+        request = f"GET {self.path} HTTP/1.1\r\n"
         headers = {
             "Host": self.host,
             "Connection": "keep-alive",
             "User-Agent": "MySimpleBrowser/1.0"
         }
         for header, value in headers.items():
-            request += "{}: {}\r\n".format(header, value)
+            request += f"{header}: {value}\r\n"
         request += "\r\n"
         return request
 
@@ -145,7 +154,6 @@ class URL:
         elif location.startswith("/"):
             self.path = location
         else:
-            # Handle relative URLs
             base = urllib.parse.urljoin(
                 f"{self.scheme}://{self.host}{self.path}", location)
             self._parse_url(base)
@@ -165,10 +173,46 @@ class URL:
 
     def _handle_view_source_request(self):
         try:
-            # Create a new URL object to fetch the source content
             source_url = URL(self.source_url)
             content = source_url.request()
-            # Return the content as-is, assuming it's HTML
             return content
         except Exception as e:
             return f"Error: {e}"
+
+    def check_in_the_cache(self, url):
+        if url in URL.cache:
+            timestamp, data = URL.cache[url]
+            if time.time() - timestamp <= URL.max_caching_time:
+                return data
+            else:
+                del URL.cache[url]  # Remove expired entry
+        return None
+
+    def update_cache(self, url, data):
+        URL.cache[url] = (time.time(), data)
+
+
+if __name__ == "__main__":
+    url = "http://info.cern.ch/hypertext/WWW/TheProject.html"
+    test_url = URL(url)
+
+    # Perform the first request and record the start time
+    start_time_first_request = time.time()
+    first_response = test_url.request()
+    end_time_first_request = time.time()
+
+    # Sleep for a second to ensure a noticeable time difference
+    time.sleep(1)
+
+    # Perform the second request and record the start time
+    start_time_second_request = time.time()
+    second_response = test_url.request()
+    end_time_second_request = time.time()
+
+    print(first_response)
+    print(second_response)
+    print(end_time_first_request - start_time_first_request)
+    print(end_time_second_request - start_time_second_request)
+    time_req1 = end_time_first_request - start_time_first_request
+    time_req2 = end_time_second_request - start_time_second_request
+    print(time_req2 < time_req1)
