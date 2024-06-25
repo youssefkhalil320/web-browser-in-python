@@ -160,3 +160,11 @@ def test_caching(mock_request):
 
     # Check if the second request was faster, indicating it used the cache
     assert time_req2 < time_req1, 'Second request takes longer time, caching may not be working'
+
+
+def test_http_compression():
+    url = "https://www.example.com"  # Ensure this URL supports gzip compression
+    true_val = """Example Domain"""  # A known piece of text from the webpage
+    test_url = URL(url)
+    body = show(test_url.request())
+    assert true_val in body, 'true value is not in the response, compression may not be working'
