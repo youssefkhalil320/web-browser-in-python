@@ -1,9 +1,8 @@
 import tkinter
-from utilities import show
+from utilities import show, layout, WIDTH, HEIGHT, VSTEP, HSTEP
 from URL import URL
 
-WIDTH = 800
-HEIGHT = 600
+SCROLL_STEP = 100
 
 
 class Browser:
@@ -18,19 +17,27 @@ class Browser:
             height=HEIGHT
         )
         self.canvas.pack()
+        self.scroll = 0
+        self.window.bind("<Down>", self.scrolldown)
+
+    def draw(self):
+        self.canvas.delete("all")
+        for x, y, c in self.display_list:
+            if y > self.scroll + HEIGHT:
+                continue
+            if y + VSTEP < self.scroll:
+                continue
+            self.canvas.create_text(x, y - self.scroll, text=c)
 
     def load(self, url):
         body = url.request()
         text = show(body)
-        print(text)
-        HSTEP, VSTEP = 13, 18
-        cursor_x, cursor_y = HSTEP, VSTEP
-        for c in text:
-            self.canvas.create_text(cursor_x, cursor_y, text=c)
-            cursor_x += HSTEP
-            if cursor_x >= WIDTH - HSTEP:
-                cursor_y += VSTEP
-                cursor_x = HSTEP
+        self.display_list = layout(text)
+        self.draw()
+
+    def scrolldown(self, e):
+        self.scroll += SCROLL_STEP
+        self.draw()
 
 
 if __name__ == "__main__":
