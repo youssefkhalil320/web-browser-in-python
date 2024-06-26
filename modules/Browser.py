@@ -34,11 +34,13 @@ class Browser:
         self.window.bind("<Button-4>", self.on_mouse_wheel_linux)
         # Linux scroll down
         self.window.bind("<Button-5>", self.on_mouse_wheel_linux)
+        # Bind to the Configure event
+        self.window.bind("<Configure>", self.on_resize)
 
     def draw(self):
         self.canvas.delete("all")
         for x, y, c in self.display_list:
-            if y > self.scroll + HEIGHT:
+            if y > self.scroll + self.canvas.winfo_height():
                 continue
             if y + VSTEP < self.scroll:
                 continue
@@ -49,7 +51,8 @@ class Browser:
     def load(self, url):
         body = url.request()
         text = show(body)
-        self.display_list = layout(text)
+        self.display_list = layout(
+            text, self.canvas.winfo_width())  # Pass width for layout
         self.update_scroll_region()
         self.draw()
 
@@ -81,16 +84,16 @@ class Browser:
         if args[0] == 'moveto':
             fraction = float(args[1])
             content_height = max(
-                y for x, y, c in self.display_list) if self.display_list else HEIGHT
+                y for x, y, c in self.display_list) if self.display_list else self.canvas.winfo_height()
             self.scroll = int(fraction * content_height)
         elif args[0] == 'scroll':
             self.scroll += int(args[1]) * SCROLL_STEP
 
         # Update scrollbar position based on self.scroll
         content_height = max(
-            y for x, y, c in self.display_list) if self.display_list else HEIGHT
+            y for x, y, c in self.display_list) if self.display_list else self.canvas.winfo_height()
         self.scrollbar.set(self.scroll / content_height,
-                           (self.scroll + HEIGHT) / content_height)
+                           (self.scroll + self.canvas.winfo_height()) / content_height)
 
         # Update canvas display
         self.draw()
@@ -98,16 +101,26 @@ class Browser:
     def update_scroll_region(self):
         content_height = max(
             y for x, y, c in self.display_list) if self.display_list else 0
-        self.canvas.config(scrollregion=(0, 0, WIDTH, content_height))
+        self.canvas.config(scrollregion=(
+            0, 0, self.canvas.winfo_width(), content_height))
 
     def update_scrollbar_position(self):
         content_height = max(
-            y for x, y, c in self.display_list) if self.display_list else HEIGHT
+            y for x, y, c in self.display_list) if self.display_list else self.canvas.winfo_height()
         self.scrollbar.set(self.scroll / content_height,
-                           (self.scroll + HEIGHT) / content_height)
+                           (self.scroll + self.canvas.winfo_height()) / content_height)
+
+    def on_resize(self, event):
+        body = URL(sys.argv[1]).request()
+        text = show(body)
+        # Re-layout with new width
+        self.display_list = layout(text, event.width)
+        self.update_scroll_region()
+        self.draw()
 
 
 if __name__ == "__main__":
     import sys
-    Browser().load(URL(sys.argv[1]))
+    browser = Browser()
+    browser.load(URL(sys.argv[1]))
     tkinter.mainloop()
