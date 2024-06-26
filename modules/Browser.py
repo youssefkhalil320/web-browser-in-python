@@ -44,6 +44,7 @@ class Browser:
                 continue
             self.canvas.create_text(x, y - self.scroll, text=c)
         self.update_scroll_region()
+        self.update_scrollbar_position()  # Update scrollbar position after drawing
 
     def load(self, url):
         body = url.request()
@@ -78,15 +79,32 @@ class Browser:
 
     def on_scroll(self, *args):
         if args[0] == 'moveto':
-            self.scroll = float(args[1]) * self.canvas.bbox('all')[3]
+            fraction = float(args[1])
+            content_height = max(
+                y for x, y, c in self.display_list) if self.display_list else HEIGHT
+            self.scroll = int(fraction * content_height)
         elif args[0] == 'scroll':
             self.scroll += int(args[1]) * SCROLL_STEP
+
+        # Update scrollbar position based on self.scroll
+        content_height = max(
+            y for x, y, c in self.display_list) if self.display_list else HEIGHT
+        self.scrollbar.set(self.scroll / content_height,
+                           (self.scroll + HEIGHT) / content_height)
+
+        # Update canvas display
         self.draw()
 
     def update_scroll_region(self):
         content_height = max(
             y for x, y, c in self.display_list) if self.display_list else 0
         self.canvas.config(scrollregion=(0, 0, WIDTH, content_height))
+
+    def update_scrollbar_position(self):
+        content_height = max(
+            y for x, y, c in self.display_list) if self.display_list else HEIGHT
+        self.scrollbar.set(self.scroll / content_height,
+                           (self.scroll + HEIGHT) / content_height)
 
 
 if __name__ == "__main__":
