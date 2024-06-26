@@ -26,6 +26,9 @@ class URL:
         elif url.startswith('data:'):
             self.scheme = 'data'
             self.data = url[len('data:'):]
+        elif url.startswith('about:blank'):
+            self.scheme = 'about:blank'
+            self.blank_url = url[len('about:'):]
         else:
             self.scheme, url = url.split('://', 1)
             assert self.scheme in ['http', 'https', 'file']
@@ -54,6 +57,8 @@ class URL:
             return self._handle_data_request()
         elif self.scheme == 'view-source':
             return self._handle_view_source_request()
+        elif self.scheme == 'about:blank':
+            return ""
         else:
             return self._handle_http_request(max_redirects)
 

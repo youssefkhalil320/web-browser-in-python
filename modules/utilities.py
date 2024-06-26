@@ -40,13 +40,7 @@ def show(body):
     return ''.join(output)
 
 
-def load(url):
-    body = url.request()
-    content = show(body)
-    print(content)
-
-
-def layout(text):
+def layout(text, width):
     display_list = []
     cursor_x, cursor_y = HSTEP, VSTEP
     for c in text:
@@ -56,7 +50,7 @@ def layout(text):
         else:
             display_list.append((cursor_x, cursor_y, c))
             cursor_x += HSTEP
-            if cursor_x >= WIDTH - HSTEP:
+            if cursor_x >= width - HSTEP:
                 cursor_y += VSTEP
                 cursor_x = HSTEP
     return display_list
