@@ -33,6 +33,9 @@ pip install -r requirements.txt
 python3 main.py http://example.org/
 ```
 
+```bash
+pytest tests/
+```
 
 ## Contribution
 Contributions are welcome! If you find any issues or have suggestions for improvement, please create an issue or submit a pull request on the project's GitHub repository.
