@@ -3,6 +3,7 @@ import tkinter.font
 from utilities import show, WIDTH, HEIGHT, VSTEP, HSTEP, PARAGRAPH_GAP
 from URL import URL
 from Layout import Layout
+from Text import Text
 
 SCROLL_STEP = 100
 
@@ -32,36 +33,37 @@ class Browser:
         self.window.bind("<Up>", self.scroll_up)
         # Windows and MacOS
         self.window.bind("<MouseWheel>", self.on_mouse_wheel)
-        # Linux scroll up
+        # Linux
         self.window.bind("<Button-4>", self.on_mouse_wheel_linux)
-        # Linux scroll down
         self.window.bind("<Button-5>", self.on_mouse_wheel_linux)
         # Bind to the Configure event
         self.window.bind("<Configure>", self.on_resize)
 
-        self.bi_times = tkinter.font.Font(
-            family="Courier",
-            size=16,
-        )
         self.display_list = []
+        self.tokens = []  # Store tokens for re-layout on resize
 
     def draw(self):
         self.canvas.delete("all")
         for x, y, c, font in self.display_list:
             if y > self.scroll + self.canvas.winfo_height():
                 continue
-            if y + VSTEP < self.scroll:
+            if y + SCROLL_STEP < self.scroll:  # Changed from VSTEP
                 continue
-            self.canvas.create_text(
-                x, y - self.scroll, text=c, font=font)
+            self.canvas.create_text(x, y - self.scroll, text=c, font=font)
         self.update_scroll_region()
         self.update_scrollbar_position()
 
     def load(self, url):
-        body = url.request()
-        tokens = show(body)
-        self.display_list = Layout(tokens).display_list
-        self.draw()
+        try:
+            body = url.request()
+            self.tokens = show(body)
+            # for i in self.tokens:
+            #     if isinstance(i, Text):
+            #         print(i.text)
+            self.display_list = Layout(self.tokens).display_list
+            self.draw()
+        except Exception as e:
+            print(f"Error loading URL: {e}")
 
     def scroll_down(self, e=None):
         self.scroll += SCROLL_STEP
@@ -96,13 +98,7 @@ class Browser:
         elif args[0] == 'scroll':
             self.scroll += int(args[1]) * SCROLL_STEP
 
-        # Update scrollbar position based on self.scroll
-        content_height = max(
-            y for x, y, c, font in self.display_list) if self.display_list else self.canvas.winfo_height()
-        self.scrollbar.set(self.scroll / content_height,
-                           (self.scroll + self.canvas.winfo_height()) / content_height)
-
-        # Update canvas display
+        self.update_scrollbar_position()
         self.draw()
 
     def update_scroll_region(self):
@@ -118,16 +114,19 @@ class Browser:
                            (self.scroll + self.canvas.winfo_height()) / content_height)
 
     def on_resize(self, event):
-        body = URL(sys.argv[1]).request()
-        tokens = show(body)
-        # Re-layout with new width
-        self.display_list = Layout(tokens).display_list
-        self.update_scroll_region()
-        self.draw()
+        try:
+            # Re-layout with new width using stored tokens
+            self.display_list = Layout(
+                self.tokens, width=event.width).display_list
+            self.update_scroll_region()
+            self.draw()
+        except Exception as e:
+            print(f"Error resizing: {e}")
 
 
 if __name__ == "__main__":
     import sys
     browser = Browser()
-    browser.load(URL(sys.argv[1]))
+    if len(sys.argv) > 1:
+        browser.load(URL(sys.argv[1]))
     tkinter.mainloop()
