@@ -4,6 +4,10 @@ from Text import Text
 from utilities import HSTEP, VSTEP, PARAGRAPH_GAP, get_font
 
 
+def get_fixed_width_font(size, weight, style):
+    return tkinter.font.Font(family="Courier New", size=size, weight=weight, slant=style)
+
+
 class Layout:
     def __init__(self, tokens, width=800):
         self.display_list = []
@@ -17,6 +21,7 @@ class Layout:
         self.centered = False  # Flag to indicate centered text
         self.superscript = False  # Flag for superscript
         self.normal_size = self.size  # Store normal size for resetting after superscript
+        self.in_pre = False  # Flag for preformatted text
         self.in_abbr = False  # Flag for abbr
         for tok in tokens:
             self.token(tok)
@@ -24,8 +29,11 @@ class Layout:
 
     def token(self, tok):
         if isinstance(tok, Text):
-            for word in tok.text.split():
-                self.word(word)
+            if self.in_pre:
+                self.preformatted_text(tok.text)
+            else:
+                for word in tok.text.split():
+                    self.word(word)
         elif tok.tag == "i":
             self.style = "italic"
         elif tok.tag == "/i":
@@ -65,40 +73,59 @@ class Layout:
             self.in_abbr = True
         elif tok.tag == "/abbr":
             self.in_abbr = False
+        elif tok.tag == "pre":
+            self.in_pre = True
+        elif tok.tag == "/pre":
+            self.in_pre = False
+
+    def preformatted_text(self, text):
+        font = get_fixed_width_font(self.size, self.weight, self.style)
+        for line in text.split("\n"):
+            if self.cursor_x + font.measure(line) > self.WIDTH - HSTEP:
+                self.flush()
+                self.cursor_y += font.metrics("linespace") * 1.25
+                self.cursor_x = HSTEP
+            self.line.append((self.cursor_x, line, font))
+            self.flush()
+            self.cursor_y += font.metrics("linespace")
+            self.cursor_x = HSTEP
 
     def word(self, word):
         font = get_font(self.size, self.weight, self.style)
+        parts = word.split("\u00AD")
         space_width = font.measure(" ")
 
-        if self.in_abbr:
-            abbr_word = ""
-            for char in word:
-                if char.islower():
-                    abbr_word += char.upper()
-                else:
-                    abbr_word += char
-            abbr_font = get_font(self.size, "bold", self.style)
-            w = abbr_font.measure(abbr_word)
-        else:
-            w = font.measure(word)
+        for part in parts:
+            w = font.measure(part)
+            if self.cursor_x + w > self.WIDTH - HSTEP:
+                self.flush()
+                self.cursor_y += font.metrics("linespace") * 1.25
+                self.cursor_x = HSTEP
 
-        if self.cursor_x + w > self.WIDTH - HSTEP:
-            self.flush()
-            self.cursor_y += font.metrics("linespace") * 1.25
-            self.cursor_x = HSTEP
+            if self.in_abbr:
+                for char in part:
+                    if char.islower():
+                        self.line.append(
+                            (self.cursor_x, char.upper(), get_font(self.size, "bold", self.style)))
+                        self.cursor_x += get_font(self.size, "bold",
+                                                  self.style).measure(char.upper())
+                    else:
+                        self.line.append((self.cursor_x, char, font))
+                        self.cursor_x += font.measure(char)
+                self.cursor_x += space_width
+            else:
+                self.line.append((self.cursor_x, part, font))
+                self.cursor_x += w + space_width
 
-        if self.in_abbr:
-            for char in word:
-                if char.islower():
-                    self.line.append((self.cursor_x, char.upper(), abbr_font))
-                    self.cursor_x += abbr_font.measure(char.upper())
-                else:
-                    self.line.append((self.cursor_x, char, font))
-                    self.cursor_x += font.measure(char)
-            self.cursor_x += space_width
-        else:
-            self.line.append((self.cursor_x, word, font))
-            self.cursor_x += w + space_width
+            if part != parts[-1]:  # Not the last part, so append a hyphen
+                hyphen_width = font.measure("-")
+                if self.cursor_x + hyphen_width > self.WIDTH - HSTEP:
+                    self.flush()
+                    self.cursor_y += font.metrics("linespace") * 1.25
+                    self.cursor_x = HSTEP
+
+                self.line.append((self.cursor_x, "-", font))
+                self.cursor_x += hyphen_width
 
     def flush(self):
         if not self.line:
