@@ -1,6 +1,9 @@
 import tkinter
-from utilities import show, layout, WIDTH, HEIGHT, VSTEP, HSTEP
+import tkinter.font
+from utilities import show, WIDTH, HEIGHT, VSTEP, HSTEP, PARAGRAPH_GAP
 from URL import URL
+from Layout import Layout
+from Text import Text
 
 SCROLL_STEP = 100
 
@@ -30,31 +33,37 @@ class Browser:
         self.window.bind("<Up>", self.scroll_up)
         # Windows and MacOS
         self.window.bind("<MouseWheel>", self.on_mouse_wheel)
-        # Linux scroll up
+        # Linux
         self.window.bind("<Button-4>", self.on_mouse_wheel_linux)
-        # Linux scroll down
         self.window.bind("<Button-5>", self.on_mouse_wheel_linux)
         # Bind to the Configure event
         self.window.bind("<Configure>", self.on_resize)
 
+        self.display_list = []
+        self.tokens = []  # Store tokens for re-layout on resize
+
     def draw(self):
         self.canvas.delete("all")
-        for x, y, c in self.display_list:
+        for x, y, c, font in self.display_list:
             if y > self.scroll + self.canvas.winfo_height():
                 continue
-            if y + VSTEP < self.scroll:
+            if y + SCROLL_STEP < self.scroll:  # Changed from VSTEP
                 continue
-            self.canvas.create_text(x, y - self.scroll, text=c)
+            self.canvas.create_text(x, y - self.scroll, text=c, font=font)
         self.update_scroll_region()
-        self.update_scrollbar_position()  # Update scrollbar position after drawing
+        self.update_scrollbar_position()
 
     def load(self, url):
-        body = url.request()
-        text = show(body)
-        self.display_list = layout(
-            text, self.canvas.winfo_width())  # Pass width for layout
-        self.update_scroll_region()
-        self.draw()
+        try:
+            body = url.request()
+            self.tokens = show(body)
+            # for i in self.tokens:
+            #     if isinstance(i, Text):
+            #         print(i.text)
+            self.display_list = Layout(self.tokens).display_list
+            self.draw()
+        except Exception as e:
+            print(f"Error loading URL: {e}")
 
     def scroll_down(self, e=None):
         self.scroll += SCROLL_STEP
@@ -84,43 +93,40 @@ class Browser:
         if args[0] == 'moveto':
             fraction = float(args[1])
             content_height = max(
-                y for x, y, c in self.display_list) if self.display_list else self.canvas.winfo_height()
+                y for x, y, c, font in self.display_list) if self.display_list else self.canvas.winfo_height()
             self.scroll = int(fraction * content_height)
         elif args[0] == 'scroll':
             self.scroll += int(args[1]) * SCROLL_STEP
 
-        # Update scrollbar position based on self.scroll
-        content_height = max(
-            y for x, y, c in self.display_list) if self.display_list else self.canvas.winfo_height()
-        self.scrollbar.set(self.scroll / content_height,
-                           (self.scroll + self.canvas.winfo_height()) / content_height)
-
-        # Update canvas display
+        self.update_scrollbar_position()
         self.draw()
 
     def update_scroll_region(self):
         content_height = max(
-            y for x, y, c in self.display_list) if self.display_list else 0
+            y for x, y, c, font in self.display_list) if self.display_list else 0
         self.canvas.config(scrollregion=(
             0, 0, self.canvas.winfo_width(), content_height))
 
     def update_scrollbar_position(self):
         content_height = max(
-            y for x, y, c in self.display_list) if self.display_list else self.canvas.winfo_height()
+            y for x, y, c, font in self.display_list) if self.display_list else self.canvas.winfo_height()
         self.scrollbar.set(self.scroll / content_height,
                            (self.scroll + self.canvas.winfo_height()) / content_height)
 
     def on_resize(self, event):
-        body = URL(sys.argv[1]).request()
-        text = show(body)
-        # Re-layout with new width
-        self.display_list = layout(text, event.width)
-        self.update_scroll_region()
-        self.draw()
+        try:
+            # Re-layout with new width using stored tokens
+            self.display_list = Layout(
+                self.tokens, width=event.width).display_list
+            self.update_scroll_region()
+            self.draw()
+        except Exception as e:
+            print(f"Error resizing: {e}")
 
 
 if __name__ == "__main__":
     import sys
     browser = Browser()
-    browser.load(URL(sys.argv[1]))
+    if len(sys.argv) > 1:
+        browser.load(URL(sys.argv[1]))
     tkinter.mainloop()
