@@ -1,7 +1,7 @@
 import tkinter
 import tkinter.font
-from Text import Text
-from utilities import HSTEP, VSTEP, PARAGRAPH_GAP, get_font
+from .Text import Text
+from .utilities import HSTEP, VSTEP, PARAGRAPH_GAP, get_font
 
 
 def get_fixed_width_font(size, weight, style):
