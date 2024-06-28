@@ -1,7 +1,7 @@
 import tkinter
 import tkinter.font
 from Text import Text
-from utilities import HSTEP, VSTEP, PARAGRAPH_GAP
+from utilities import HSTEP, VSTEP, PARAGRAPH_GAP, get_font
 
 
 class Layout:
@@ -47,11 +47,7 @@ class Layout:
             self.cursor_y += VSTEP + PARAGRAPH_GAP
 
     def word(self, word):
-        font = tkinter.font.Font(
-            size=self.size,
-            weight=self.weight,
-            slant=self.style,
-        )
+        font = get_font(self.size, self.weight, self.style)
         w = font.measure(word)
         space_width = font.measure(" ")
 
