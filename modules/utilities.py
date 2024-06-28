@@ -1,6 +1,6 @@
 import tkinter.font
-from Text import Text
-from Tag import Tag
+from modules.Text import Text
+from modules.Tag import Tag
 
 WIDTH = 800
 HEIGHT = 600
@@ -39,3 +39,7 @@ def get_font(size, weight, style):
         label = tkinter.Label(font=font)
         FONTS[key] = (font, label)
     return FONTS[key][0]
+
+
+if __name__ == "__main__":
+    tt = Text("dd")

@@ -1,9 +1,9 @@
 import tkinter
 import tkinter.font
-from utilities import show, WIDTH, HEIGHT, VSTEP, HSTEP, PARAGRAPH_GAP
-from URL import URL
-from Layout import Layout
-from Text import Text
+from .utilities import show, WIDTH, HEIGHT, VSTEP, HSTEP, PARAGRAPH_GAP
+from .URL import URL
+from .Layout import Layout
+from .Text import Text
 
 SCROLL_STEP = 100
 
@@ -122,11 +122,3 @@ class Browser:
             self.draw()
         except Exception as e:
             print(f"Error resizing: {e}")
-
-
-if __name__ == "__main__":
-    import sys
-    browser = Browser()
-    if len(sys.argv) > 1:
-        browser.load(URL(sys.argv[1]))
-    tkinter.mainloop()
