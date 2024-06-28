@@ -63,16 +63,28 @@ class Layout:
 
     def word(self, word):
         font = get_font(self.size, self.weight, self.style)
-        w = font.measure(word)
+        parts = word.split("\u00AD")
         space_width = font.measure(" ")
 
-        if self.cursor_x + w > self.WIDTH - HSTEP:
-            self.flush()
-            self.cursor_y += font.metrics("linespace") * 1.25
-            self.cursor_x = HSTEP
+        for part in parts:
+            w = font.measure(part)
+            if self.cursor_x + w > self.WIDTH - HSTEP:
+                self.flush()
+                self.cursor_y += font.metrics("linespace") * 1.25
+                self.cursor_x = HSTEP
 
-        self.line.append((self.cursor_x, word, font))
-        self.cursor_x += w + space_width
+            self.line.append((self.cursor_x, part, font))
+            self.cursor_x += w + space_width
+
+            if part != parts[-1]:  # Not the last part, so append a hyphen
+                hyphen_width = font.measure("-")
+                if self.cursor_x + hyphen_width > self.WIDTH - HSTEP:
+                    self.flush()
+                    self.cursor_y += font.metrics("linespace") * 1.25
+                    self.cursor_x = HSTEP
+
+                self.line.append((self.cursor_x, "-", font))
+                self.cursor_x += hyphen_width
 
     def flush(self):
         if not self.line:

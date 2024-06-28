@@ -17,7 +17,7 @@ def show(body):
         if c == "<":
             in_tag = True
             if buffer:
-                out.append(Text(buffer))
+                out.append(Text(buffer.replace("&shy;", "\u00AD")))
             buffer = ""
         elif c == ">":
             in_tag = False
@@ -26,7 +26,7 @@ def show(body):
         else:
             buffer += c
     if not in_tag and buffer:
-        out.append(Text(buffer))
+        out.append(Text(buffer.replace("&shy;", "\u00AD")))
 
     return out
 
