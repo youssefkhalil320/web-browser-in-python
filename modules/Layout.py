@@ -15,6 +15,8 @@ class Layout:
         self.size = 12
         self.line = []
         self.centered = False  # Flag to indicate centered text
+        self.superscript = False  # Flag for superscript
+        self.normal_size = self.size  # Store normal size for resetting after superscript
         for tok in tokens:
             self.token(tok)
         self.flush()
@@ -52,6 +54,12 @@ class Layout:
         elif tok.tag == "/h1":
             self.centered = False
             self.size = 12  # Reset size after h1 title
+        elif tok.tag == "sup":
+            self.superscript = True
+            self.size = self.normal_size // 2  # Make text smaller
+        elif tok.tag == "/sup":
+            self.superscript = False
+            self.size = self.normal_size  # Reset size after superscript
 
     def word(self, word):
         font = get_font(self.size, self.weight, self.style)
@@ -83,7 +91,10 @@ class Layout:
             offset_x = 0
 
         for x, word, font in self.line:
-            y = baseline - font.metrics("ascent")
+            if self.superscript:
+                y = self.cursor_y  # Align top of superscript with the top of normal text
+            else:
+                y = baseline - font.metrics("ascent")
             self.display_list.append((x + offset_x, y, word, font))
 
         max_descent = max([metric["descent"] for metric in metrics])
