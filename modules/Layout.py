@@ -14,6 +14,7 @@ class Layout:
         self.WIDTH = width
         self.size = 12
         self.line = []
+        self.centered = False  # Flag to indicate centered text
         for tok in tokens:
             self.token(tok)
         self.flush()
@@ -45,6 +46,12 @@ class Layout:
         elif tok.tag == "/p":
             self.flush()
             self.cursor_y += VSTEP + PARAGRAPH_GAP
+        elif tok.tag == "h1" and "class=title" in tok.tag:
+            self.centered = True
+            self.size = 24  # Adjust size for h1 title
+        elif tok.tag == "/h1":
+            self.centered = False
+            self.size = 12  # Reset size after h1 title
 
     def word(self, word):
         font = get_font(self.size, self.weight, self.style)
@@ -62,12 +69,22 @@ class Layout:
     def flush(self):
         if not self.line:
             return
+
         metrics = [font.metrics() for x, word, font in self.line]
         max_ascent = max([metric["ascent"] for metric in metrics])
         baseline = self.cursor_y + max_ascent
+
+        # Calculate line width for centering
+        line_width = sum(font.measure(word) for x, word, font in self.line) + \
+            (len(self.line) - 1) * self.line[0][2].measure(" ")
+        if self.centered:
+            offset_x = (self.WIDTH - line_width) / 2
+        else:
+            offset_x = 0
+
         for x, word, font in self.line:
             y = baseline - font.metrics("ascent")
-            self.display_list.append((x, y, word, font))
+            self.display_list.append((x + offset_x, y, word, font))
 
         max_descent = max([metric["descent"] for metric in metrics])
         self.cursor_y = baseline + max_descent
