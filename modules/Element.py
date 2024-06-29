@@ -3,3 +3,6 @@ class Element:
         self.tag = tag
         self.children = []
         self.parent = parent
+
+    def __repr__(self):
+        return "<" + self.tag + ">"
