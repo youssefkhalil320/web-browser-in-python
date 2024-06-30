@@ -1,6 +1,6 @@
 import tkinter.font
 from modules.Text import Text
-from modules.Tag import Tag
+from modules.Element import Element
 
 WIDTH = 800
 HEIGHT = 600
@@ -39,6 +39,12 @@ def get_font(size, weight, style):
         label = tkinter.Label(font=font)
         FONTS[key] = (font, label)
     return FONTS[key][0]
+
+
+def print_tree(node, indent=0):
+    print(" " * indent, node)
+    for child in node.children:
+        print_tree(child, indent + 2)
 
 
 if __name__ == "__main__":
