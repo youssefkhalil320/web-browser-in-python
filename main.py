@@ -16,3 +16,6 @@ if __name__ == "__main__":
     nodes = HTMLParser(body).parse()
     print_tree(nodes)
     # print tree test
+
+
+# python main.py https://browser.engineering/html.html
