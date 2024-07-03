@@ -1,7 +1,7 @@
 import tkinter
 import tkinter.font
 from .Text import Text
-from .utilities import HSTEP, VSTEP, PARAGRAPH_GAP, get_font
+from .utilities import HSTEP, VSTEP, PARAGRAPH_GAP, get_font, WIDTH
 
 
 def get_fixed_width_font(size, weight, style):
@@ -9,9 +9,9 @@ def get_fixed_width_font(size, weight, style):
 
 
 class Layout:
-    def __init__(self, tree):
+    def __init__(self, tree, width=WIDTH):
         self.display_list = []
-
+        self.width = width
         self.cursor_x = HSTEP
         self.cursor_y = VSTEP
         self.weight = "normal"
