@@ -15,3 +15,7 @@ if __name__ == "__main__":
     body = URL(sys.argv[1]).request()
     nodes = HTMLParser(body).parse()
     print_tree(nodes)
+    # print tree test
+
+
+# python main.py https://browser.engineering/html.html
