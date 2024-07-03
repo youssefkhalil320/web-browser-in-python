@@ -1,9 +1,11 @@
 import tkinter
 import tkinter.font
-from .utilities import show, WIDTH, HEIGHT, VSTEP, HSTEP, PARAGRAPH_GAP
+from .utilities import show, WIDTH, HEIGHT, paint_tree
 from .URL import URL
 from .Layout import Layout
 from .Text import Text
+from .HTMLParser import HTMLParser
+from .DocumentLayout import DocumentLayout
 
 SCROLL_STEP = 100
 
@@ -44,26 +46,21 @@ class Browser:
 
     def draw(self):
         self.canvas.delete("all")
-        for x, y, c, font in self.display_list:
-            if y > self.scroll + self.canvas.winfo_height():
+        for cmd in self.display_list:
+            if cmd.top > self.scroll + HEIGHT:
                 continue
-            if y + SCROLL_STEP < self.scroll:  # Changed from VSTEP
+            if cmd.bottom < self.scroll:
                 continue
-            self.canvas.create_text(x, y - self.scroll, text=c, font=font)
-        self.update_scroll_region()
-        self.update_scrollbar_position()
+            cmd.execute(self.scroll, self.canvas)
 
     def load(self, url):
-        try:
-            body = url.request()
-            self.tokens = show(body)
-            # for i in self.tokens:
-            #     if isinstance(i, Text):
-            #         print(i.text)
-            self.display_list = Layout(self.tokens).display_list
-            self.draw()
-        except Exception as e:
-            print(f"Error loading URL: {e}")
+        body = url.request()
+        self.nodes = HTMLParser(body).parse()
+        self.document = DocumentLayout(self.nodes)
+        self.document.layout()
+        self.display_list = []
+        paint_tree(self.document, self.display_list)
+        self.draw()
 
     def scroll_down(self, e=None):
         self.scroll += SCROLL_STEP
@@ -103,21 +100,22 @@ class Browser:
 
     def update_scroll_region(self):
         content_height = max(
-            y for x, y, c, font in self.display_list) if self.display_list else 0
+            cmd.bottom for cmd in self.display_list) if self.display_list else 0
         self.canvas.config(scrollregion=(
             0, 0, self.canvas.winfo_width(), content_height))
 
     def update_scrollbar_position(self):
         content_height = max(
-            y for x, y, c, font in self.display_list) if self.display_list else self.canvas.winfo_height()
+            cmd.bottom for cmd in self.display_list) if self.display_list else self.canvas.winfo_height()
         self.scrollbar.set(self.scroll / content_height,
                            (self.scroll + self.canvas.winfo_height()) / content_height)
 
     def on_resize(self, event):
         try:
             # Re-layout with new width using stored tokens
-            self.display_list = Layout(
-                self.tokens, width=event.width).display_list
+            self.document.layout(width=event.width)
+            self.display_list = []
+            paint_tree(self.document, self.display_list)
             self.update_scroll_region()
             self.draw()
         except Exception as e:
