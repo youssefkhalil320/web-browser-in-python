@@ -1,6 +1,8 @@
 import tkinter.font
 from modules.Text import Text
 from modules.Element import Element
+from .wbetools import patchable
+
 
 WIDTH = 800
 HEIGHT = 600
@@ -41,10 +43,12 @@ def get_font(size, weight, style):
     return FONTS[key][0]
 
 
-def print_tree(node, indent=0):
-    print(" " * indent, node)
-    for child in node.children:
-        print_tree(child, indent + 2)
+@patchable
+def paint_tree(layout_object, display_list):
+    display_list.extend(layout_object.paint())
+
+    for child in layout_object.children:
+        paint_tree(child, display_list)
 
 
 if __name__ == "__main__":
