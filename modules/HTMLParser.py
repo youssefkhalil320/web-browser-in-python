@@ -1,6 +1,7 @@
 from .Text import Text
 from .Element import Element
 
+
 SELF_CLOSING_TAGS = [
     "area", "base", "br", "col", "embed", "hr", "img", "input",
     "link", "meta", "param", "source", "track", "wbr",
