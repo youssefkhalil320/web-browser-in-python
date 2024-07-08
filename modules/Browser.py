@@ -1,13 +1,17 @@
 import tkinter
 import tkinter.font
-from .utilities import show, WIDTH, HEIGHT, paint_tree
+from .utilities import show, WIDTH, HEIGHT, paint_tree, tree_to_list, style, cascade_priority
 from .URL import URL
 from .Layout import Layout
 from .Text import Text
+from .Element import Element
 from .HTMLParser import HTMLParser
 from .DocumentLayout import DocumentLayout
+from .css_parser import CSSParser
+
 
 SCROLL_STEP = 100
+DEFAULT_STYLE_SHEET = CSSParser(open("./modules/browser6.css").read()).parse()
 
 
 class Browser:
@@ -56,6 +60,23 @@ class Browser:
     def load(self, url):
         body = url.request()
         self.nodes = HTMLParser(body).parse()
+
+        rules = DEFAULT_STYLE_SHEET.copy()
+        links = [node.attributes["href"]
+                 for node in tree_to_list(self.nodes, [])
+                 if isinstance(node, Element)
+                 and node.tag == "link"
+                 and node.attributes.get("rel") == "stylesheet"
+                 and "href" in node.attributes]
+        for link in links:
+            style_url = url.resolve(link)
+            try:
+                body = style_url.request()
+            except:
+                continue
+            rules.extend(CSSParser(body).parse())
+        style(self.nodes, sorted(rules, key=cascade_priority))
+
         self.document = DocumentLayout(self.nodes)
         self.document.layout()
         self.display_list = []
